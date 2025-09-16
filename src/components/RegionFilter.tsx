@@ -14,7 +14,7 @@ const RegionFilter: React.FC<RegionFilterProps> = ({ selectedRegion, onRegionCha
           onClick={() => onRegionChange('all')}
           className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
             selectedRegion === 'all'
-              ? 'bg-blue-600 text-white border-blue-600'
+              ? 'bg-[#182084] text-white border-[#182084]'
               : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-300'
           }`}
         >
@@ -26,7 +26,7 @@ const RegionFilter: React.FC<RegionFilterProps> = ({ selectedRegion, onRegionCha
             onClick={() => onRegionChange(region.id)}
             className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
               selectedRegion === region.id
-                ? 'bg-blue-600 text-white border-blue-600'
+                ? 'bg-[#182084] text-white border-[#182084]'
                 : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-300'
             }`}
           >

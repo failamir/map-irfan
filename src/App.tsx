@@ -33,10 +33,10 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#F3F8FF]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Page Header */}
-        <h1 className="text-3xl sm:text-4xl font-bold text-center text-slate-800">Temukan Cabang Terdekat di Kotamu</h1>
+        {/* <h1 className="text-3xl sm:text-4xl font-bold text-center text-slate-800">Temukan Cabang Terdekat di Kotamu</h1> */}
         <div className="mt-6 flex justify-center">
           <RegionFilter
             selectedRegion={selectedRegion}
