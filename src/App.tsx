@@ -34,10 +34,12 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#F3F8FF]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         {/* Page Header */}
-        {/* <h1 className="text-3xl sm:text-4xl font-bold text-center text-slate-800">Temukan Cabang Terdekat di Kotamu</h1> */}
-        <div className="mt-6 flex justify-center">
+        <h1 className="text-2xl sm:text-3xl font-bold text-center text-slate-800">
+          Temukan Cabang Terdekat di Kotamu
+        </h1>
+        <div className="mt-4 sm:mt-6 flex justify-center">
           <RegionFilter
             selectedRegion={selectedRegion}
             onRegionChange={setSelectedRegion}
@@ -45,9 +47,9 @@ function App() {
         </div>
 
         {/* Content */}
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <div className="mt-4 sm:mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 items-start">
           {/* Left: Sidebar Card */}
-          <div className="w-full h-[520px] sm:h-[560px] lg:h-[620px]">
+          <div className="w-full h-auto lg:h-[620px]">
             <Sidebar
               clinics={filteredClinics}
               searchTerm={searchTerm}
@@ -58,7 +60,7 @@ function App() {
           </div>
 
           {/* Right: Map Card */}
-          <div className="h-[520px] sm:h-[560px] lg:h-[620px] bg-white rounded-xl border border-slate-200 shadow">
+          <div className="h-[300px] sm:h-[360px] lg:h-[620px] bg-white rounded-xl border border-slate-200 shadow">
             <MapComponent
               clinics={filteredClinics}
               selectedClinic={selectedClinic}
