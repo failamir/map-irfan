@@ -1,12 +1,13 @@
 import React from 'react';
-import { regions } from '../data/clinics';
+import { Region } from '../types/clinic';
 
 interface RegionFilterProps {
   selectedRegion: string;
   onRegionChange: (region: string) => void;
+  regions: Region[];
 }
 
-const RegionFilter: React.FC<RegionFilterProps> = ({ selectedRegion, onRegionChange }) => {
+const RegionFilter: React.FC<RegionFilterProps> = ({ selectedRegion, onRegionChange, regions }) => {
   return (
     <div className="mb-2 w-full min-w-0">
       {/* Horizontal scroll for region chips on all screens */}
