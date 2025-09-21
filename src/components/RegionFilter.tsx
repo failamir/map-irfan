@@ -8,9 +8,9 @@ interface RegionFilterProps {
 
 const RegionFilter: React.FC<RegionFilterProps> = ({ selectedRegion, onRegionChange }) => {
   return (
-    <div className="mb-2">
-      {/* Horizontal scroll on mobile, wrap on larger screens */}
-      <div className="flex gap-2 justify-start sm:justify-center overflow-x-auto sm:overflow-visible no-scrollbar snap-x snap-mandatory px-1 py-1">
+    <div className="mb-2 w-full min-w-0">
+      {/* Horizontal scroll for region chips on all screens */}
+      <div className="flex flex-nowrap whitespace-nowrap gap-2 justify-start overflow-x-auto overflow-x-touch no-scrollbar snap-x snap-mandatory px-1 py-1 w-full">
         <button
           onClick={() => onRegionChange('all')}
           className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border flex-shrink-0 snap-start ${
