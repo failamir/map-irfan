@@ -6,4 +6,10 @@
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .overflow-x-touch { -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+}
+
+/* Prevent page-level horizontal scrolling; keep component-level control */
+html, body, #root {
+  overflow-x: hidden;
 }
