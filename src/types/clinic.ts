@@ -11,8 +11,14 @@ export interface Clinic {
   image: string;
 }
 
+export interface City {
+  name: string;
+  count: number;
+}
+
 export interface Region {
   id: string;
   name: string;
-  cities: string[];
+  clinic_count: number;
+  cities: City[];
 }

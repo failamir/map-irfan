@@ -1,36 +1,57 @@
 import { Clinic, Region } from '../types/clinic';
 
 export const regions: Region[] = [
+  // "All" summary must be first
+  {
+    id: 'all',
+    name: 'Semua Cabang',
+    clinic_count: 9,
+    cities: [
+      { name: 'Jakarta', count: 3 },
+      { name: 'Yogyakarta', count: 1 },
+      { name: 'Surabaya', count: 1 },
+      { name: 'Medan', count: 1 },
+      { name: 'Denpasar', count: 1 },
+      { name: 'Banjarmasin', count: 1 },
+      { name: 'Makassar', count: 1 },
+    ],
+  },
   {
     id: 'jabodetabek',
     name: 'Jabodetabek',
-    cities: ['Jakarta', 'Bogor', 'Depok', 'Tangerang', 'Bekasi']
+    clinic_count: 3,
+    cities: [ { name: 'Jakarta', count: 3 } ],
   },
   {
     id: 'jawa',
     name: 'Jawa',
-    cities: ['Yogyakarta', 'Surabaya', 'Bandung', 'Semarang']
+    clinic_count: 2,
+    cities: [ { name: 'Yogyakarta', count: 1 }, { name: 'Surabaya', count: 1 } ],
   },
   {
     id: 'sumatera',
     name: 'Sumatera',
-    cities: ['Medan', 'Palembang', 'Pekanbaru', 'Padang']
+    clinic_count: 1,
+    cities: [ { name: 'Medan', count: 1 } ],
   },
   {
     id: 'bali',
     name: 'Bali',
-    cities: ['Denpasar', 'Ubud', 'Sanur', 'Kuta']
+    clinic_count: 1,
+    cities: [ { name: 'Denpasar', count: 1 } ],
   },
   {
     id: 'kalimantan',
     name: 'Kalimantan',
-    cities: ['Banjarmasin', 'Pontianak', 'Balikpapan', 'Samarinda']
+    clinic_count: 1,
+    cities: [ { name: 'Banjarmasin', count: 1 } ],
   },
   {
     id: 'sulawesi',
     name: 'Sulawesi',
-    cities: ['Makassar', 'Manado', 'Palu', 'Kendari']
-  }
+    clinic_count: 1,
+    cities: [ { name: 'Makassar', count: 1 } ],
+  },
 ];
 
 export const clinics: Clinic[] = [
