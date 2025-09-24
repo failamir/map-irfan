@@ -9,12 +9,18 @@ import { CLINICS_ENDPOINT, REGIONS_ENDPOINT } from './config';
 function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('all');
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [selectedClinic, setSelectedClinic] = useState<Clinic | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [clinicsData, setClinicsData] = useState<Clinic[]>(localClinics);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [regionsData, setRegionsData] = useState<Region[]>(localRegions);
+
+  // Reset city when region changes
+  useEffect(() => {
+    setSelectedCity(null);
+  }, [selectedRegion]);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,10 +66,11 @@ function App() {
         clinic.address.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesRegion = selectedRegion === 'all' || clinic.region === selectedRegion;
+      const matchesCity = !selectedCity || clinic.city === selectedCity;
       
-      return matchesSearch && matchesRegion;
+      return matchesSearch && matchesRegion && matchesCity;
     });
-  }, [searchTerm, selectedRegion, clinicsData]);
+  }, [searchTerm, selectedRegion, selectedCity, clinicsData]);
 
   const handleClinicSelect = (clinic: Clinic) => {
     setSelectedClinic(clinic);
@@ -80,12 +87,25 @@ function App() {
         {/* <h1 className="text-2xl sm:text-3xl font-bold text-center text-slate-800">
           Temukan Cabang Terdekat di Kotamu
         </h1> */}
-        <div className="mt-4 sm:mt-6 w-full min-w-0">
+        <div className="mt-4 sm:mt-6 w-full min-w-0 sticky top-2 sm:top-4 z-30 bg-[#F3F8FF]/80 supports-[backdrop-filter]:bg-[#F3F8FF]/60 backdrop-blur rounded-xl py-2">
           <RegionFilter
             selectedRegion={selectedRegion}
+            selectedCity={selectedCity}
             onRegionChange={setSelectedRegion}
+            onCitySelect={setSelectedCity}
             regions={regionsData}
           />
+        </div>
+
+        {/* Mobile sticky map above search (hidden on lg and up) */}
+        <div className="block lg:hidden sticky z-20 top-[68px] sm:top-[88px] mt-3">
+          <div className="h-[260px] sm:h-[300px] bg-white rounded-xl border border-slate-200 shadow overflow-hidden">
+            <MapComponent
+              clinics={filteredClinics}
+              selectedClinic={selectedClinic}
+              onClinicSelect={handleClinicSelect}
+            />
+          </div>
         </div>
 
         {/* Content */}
@@ -102,7 +122,7 @@ function App() {
           </div>
 
           {/* Right: Map Card */}
-          <div className="h-[300px] sm:h-[360px] lg:h-[620px] bg-white rounded-xl border border-slate-200 shadow">
+          <div className="hidden lg:block lg:h-[620px] bg-white rounded-xl border border-slate-200 shadow">
             <MapComponent
               clinics={filteredClinics}
               selectedClinic={selectedClinic}
