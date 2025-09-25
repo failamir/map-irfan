@@ -59,6 +59,7 @@ function sozo_register_clinic_meta() {
         'lng'     => [ 'type' => 'number', 'single' => true ],
         'services'=> [ 'type' => 'string', 'single' => true ], // Comma-separated list; will be split in API
         'rating'  => [ 'type' => 'number', 'single' => true ],
+        'image_url' => [ 'type' => 'string', 'single' => true ], // Optional external image URL
     ];
 
     foreach ( $meta_keys as $key => $args ) {
@@ -114,7 +115,8 @@ function sozo_register_clinics_route() {
 
                 $lat = (float) get_post_meta( $id, 'lat', true );
                 $lng = (float) get_post_meta( $id, 'lng', true );
-                $image = get_the_post_thumbnail_url( $id, 'large' );
+                $image_meta = trim( (string) get_post_meta( $id, 'image_url', true ) );
+                $image = $image_meta !== '' ? $image_meta : get_the_post_thumbnail_url( $id, 'large' );
 
                 $item = [
                     'id'      => (string) $id,
@@ -135,6 +137,125 @@ function sozo_register_clinics_route() {
     ] );
 }
 add_action( 'rest_api_init', 'sozo_register_clinics_route' );
+
+// Admin Meta Box: Clinic Details
+function sozo_add_clinic_meta_box() {
+    add_meta_box(
+        'sozo_clinic_details',
+        __( 'Clinic Details', 'sozo-clinics' ),
+        'sozo_render_clinic_meta_box',
+        'clinic',
+        'normal',
+        'high'
+    );
+}
+add_action( 'add_meta_boxes', 'sozo_add_clinic_meta_box' );
+
+function sozo_render_clinic_meta_box( $post ) {
+    wp_nonce_field( 'sozo_save_clinic_meta', 'sozo_clinic_meta_nonce' );
+
+    $address   = get_post_meta( $post->ID, 'address', true );
+    $city      = get_post_meta( $post->ID, 'city', true );
+    $phone     = get_post_meta( $post->ID, 'phone', true );
+    $lat       = get_post_meta( $post->ID, 'lat', true );
+    $lng       = get_post_meta( $post->ID, 'lng', true );
+    $services  = get_post_meta( $post->ID, 'services', true );
+    $rating    = get_post_meta( $post->ID, 'rating', true );
+    $image_url = get_post_meta( $post->ID, 'image_url', true );
+
+    echo '<p><label for="sozo_address"><strong>' . esc_html__( 'Address', 'sozo-clinics' ) . '</strong></label><br />';
+    echo '<input type="text" id="sozo_address" name="sozo_address" class="widefat" value="' . esc_attr( $address ) . '" /></p>';
+
+    echo '<p><label for="sozo_city"><strong>' . esc_html__( 'City', 'sozo-clinics' ) . '</strong></label><br />';
+    echo '<input type="text" id="sozo_city" name="sozo_city" class="widefat" value="' . esc_attr( $city ) . '" /></p>';
+
+    echo '<p><label for="sozo_phone"><strong>' . esc_html__( 'Phone', 'sozo-clinics' ) . '</strong></label><br />';
+    echo '<input type="text" id="sozo_phone" name="sozo_phone" class="widefat" value="' . esc_attr( $phone ) . '" /></p>';
+
+    echo '<div style="display:flex; gap:12px;">';
+    echo '<p style="flex:1;"><label for="sozo_lat"><strong>' . esc_html__( 'Latitude', 'sozo-clinics' ) . '</strong></label><br />';
+    echo '<input type="number" step="any" id="sozo_lat" name="sozo_lat" class="widefat" value="' . esc_attr( $lat ) . '" /></p>';
+    echo '<p style="flex:1;"><label for="sozo_lng"><strong>' . esc_html__( 'Longitude', 'sozo-clinics' ) . '</strong></label><br />';
+    echo '<input type="number" step="any" id="sozo_lng" name="sozo_lng" class="widefat" value="' . esc_attr( $lng ) . '" /></p>';
+    echo '</div>';
+
+    echo '<p><label for="sozo_services"><strong>' . esc_html__( 'Services (comma separated)', 'sozo-clinics' ) . '</strong></label><br />';
+    echo '<input type="text" id="sozo_services" name="sozo_services" class="widefat" value="' . esc_attr( $services ) . '" placeholder="Perawatan Kulit, Konsultasi Dermatologi, Laser Treatment" /></p>';
+
+    echo '<p><label for="sozo_rating"><strong>' . esc_html__( 'Rating (0-5)', 'sozo-clinics' ) . '</strong></label><br />';
+    echo '<input type="number" min="0" max="5" step="0.1" id="sozo_rating" name="sozo_rating" class="widefat" value="' . esc_attr( $rating ) . '" /></p>';
+
+    echo '<p><label for="sozo_image_url"><strong>' . esc_html__( 'External Image URL (optional)', 'sozo-clinics' ) . '</strong></label><br />';
+    echo '<input type="url" id="sozo_image_url" name="sozo_image_url" class="widefat" value="' . esc_attr( $image_url ) . '" placeholder="https://..." />';
+    echo '<em>' . esc_html__( 'If provided, this URL will be used in the API instead of the Featured Image.', 'sozo-clinics' ) . '</em></p>';
+
+    echo '<p><strong>' . esc_html__( 'Region', 'sozo-clinics' ) . ':</strong> ' . esc_html__( 'Use the "Clinic Regions" box in the sidebar to assign a region (e.g., jawa).', 'sozo-clinics' ) . '</p>';
+    echo '<p><strong>' . esc_html__( 'Image', 'sozo-clinics' ) . ':</strong> ' . esc_html__( 'You can also set a Featured Image which will be used if External Image URL is empty.', 'sozo-clinics' ) . '</p>';
+}
+
+function sozo_save_clinic_meta( $post_id ) {
+    // Verify nonce
+    if ( ! isset( $_POST['sozo_clinic_meta_nonce'] ) || ! wp_verify_nonce( $_POST['sozo_clinic_meta_nonce'], 'sozo_save_clinic_meta' ) ) {
+        return;
+    }
+
+    // Autosave?
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+        return;
+    }
+
+    // Check permissions
+    if ( isset( $_POST['post_type'] ) && 'clinic' === $_POST['post_type'] ) {
+        if ( ! current_user_can( 'edit_post', $post_id ) ) {
+            return;
+        }
+    } else {
+        return;
+    }
+
+    // Sanitize and save fields
+    $map = [
+        'sozo_address'   => 'address',
+        'sozo_city'      => 'city',
+        'sozo_phone'     => 'phone',
+        'sozo_lat'       => 'lat',
+        'sozo_lng'       => 'lng',
+        'sozo_services'  => 'services',
+        'sozo_rating'    => 'rating',
+        'sozo_image_url' => 'image_url',
+    ];
+
+    foreach ( $map as $posted => $meta_key ) {
+        if ( isset( $_POST[ $posted ] ) ) {
+            $value = $_POST[ $posted ];
+            switch ( $meta_key ) {
+                case 'lat':
+                case 'lng':
+                    $value = is_numeric( $value ) ? (float) $value : '';
+                    break;
+                case 'rating':
+                    $value = is_numeric( $value ) ? max( 0, min( 5, (float) $value ) ) : '';
+                    break;
+                case 'image_url':
+                    $value = esc_url_raw( trim( $value ) );
+                    break;
+                case 'services':
+                    // Normalize services: split by comma, trim, re-join
+                    $parts = array_filter( array_map( 'trim', explode( ',', (string) $value ) ) );
+                    $value = implode( ', ', $parts );
+                    break;
+                default:
+                    $value = sanitize_text_field( $value );
+            }
+            if ( $value === '' ) {
+                delete_post_meta( $post_id, $meta_key );
+            } else {
+                update_post_meta( $post_id, $meta_key, $value );
+            }
+        }
+    }
+}
+add_action( 'save_post', 'sozo_save_clinic_meta' );
 
 // REST: /sozo/v1/regions (with clinic counts and city counts)
 function sozo_register_regions_route() {
