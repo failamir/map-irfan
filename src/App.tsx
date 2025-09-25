@@ -81,13 +81,13 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F3F8FF] overflow-x-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+    <div className="fixed inset-0 bg-[#F3F8FF] overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full min-h-0 flex flex-col py-4 sm:py-6">
         {/* Page Header */}
         {/* <h1 className="text-2xl sm:text-3xl font-bold text-center text-slate-800">
           Temukan Cabang Terdekat di Kotamu
         </h1> */}
-        <div className="mt-4 sm:mt-6 w-full min-w-0 sticky top-2 sm:top-4 z-30 bg-[#F3F8FF]/80 supports-[backdrop-filter]:bg-[#F3F8FF]/60 backdrop-blur rounded-xl py-2">
+        <div className="w-full min-w-0 z-40 bg-[#F3F8FF] supports-[backdrop-filter]:bg-[#F3F8FF]/90 backdrop-blur-md rounded-none sm:rounded-xl py-2">
           <RegionFilter
             selectedRegion={selectedRegion}
             selectedCity={selectedCity}
@@ -97,8 +97,8 @@ function App() {
           />
         </div>
 
-        {/* Mobile sticky map above search (hidden on lg and up) */}
-        <div className="block lg:hidden sticky z-20 top-[68px] sm:top-[88px] mt-3">
+        {/* Mobile map (non-scrolling block) */}
+        <div className="block lg:hidden shrink-0 mt-2">
           <div className="h-[260px] sm:h-[300px] bg-white rounded-xl border border-slate-200 shadow overflow-hidden">
             <MapComponent
               clinics={filteredClinics}
@@ -108,10 +108,10 @@ function App() {
           </div>
         </div>
 
-        {/* Content */}
-        <div className="mt-4 sm:mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 items-start">
-          {/* Left: Sidebar Card */}
-          <div className="w-full h-auto lg:h-[620px]">
+        {/* Content fills remaining viewport height */}
+        <div className="mt-3 sm:mt-4 flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 items-stretch min-h-0">
+          {/* Left: Sidebar Card (Sticky container, list inside scrolls) */}
+          <div className="h-full min-h-0">
             <Sidebar
               clinics={filteredClinics}
               searchTerm={searchTerm}
@@ -121,8 +121,8 @@ function App() {
             />
           </div>
 
-          {/* Right: Map Card */}
-          <div className="hidden lg:block lg:h-[620px] bg-white rounded-xl border border-slate-200 shadow">
+          {/* Right: Map Card (fills column height, which is viewport-based) */}
+          <div className="hidden lg:block h-full min-h-0 bg-white rounded-xl border border-slate-200 shadow overflow-hidden">
             <MapComponent
               clinics={filteredClinics}
               selectedClinic={selectedClinic}

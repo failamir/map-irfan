@@ -30,7 +30,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         />
       </div>
 
-      <div className="px-4 sm:px-6 py-3 sm:py-4 lg:overflow-y-auto lg:h-[calc(620px-96px)]">
+      {/* Only this section scrolls */}
+      <div className="px-4 sm:px-6 py-3 sm:py-4 overflow-y-auto flex-1 min-h-0">
         <div className="space-y-4">
           {clinics.length === 0 ? (
             <div className="text-center py-8">

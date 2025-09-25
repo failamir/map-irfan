@@ -9,7 +9,8 @@
   .overflow-x-touch { -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
 }
 
-/* Prevent page-level horizontal scrolling; keep component-level control */
+/* Prevent page scroll; only internal panels manage their own scroll */
 html, body, #root {
-  overflow-x: hidden;
+  height: 100%;
+  overflow: hidden; /* both axes */
 }
