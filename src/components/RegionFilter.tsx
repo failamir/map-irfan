@@ -1,5 +1,4 @@
 import React from 'react';
-import { regions as localRegions } from '../data/clinics';
 import { Region } from '../types/clinic';
 
 interface RegionFilterProps {
@@ -7,13 +6,16 @@ interface RegionFilterProps {
   onRegionChange: (region: string) => void;
   selectedCity?: string | null;
   onCitySelect?: (city: string | null) => void;
-  regions?: Region[];
+  regions: Region[];
 }
 
-const RegionFilter: React.FC<RegionFilterProps> = ({ selectedRegion, onRegionChange, regions: regionsData = localRegions, selectedCity, onCitySelect }) => {
+const RegionFilter: React.FC<RegionFilterProps> = ({ selectedRegion, onRegionChange, regions, selectedCity, onCitySelect }) => {
+  const regionsToShow = Array.isArray(regions) ? regions.filter(r => r.id !== 'all') : [];
+  const activeRegion = regions.find(r => r.id === selectedRegion);
+
   return (
     <div className="mb-2">
-      {/* Horizontal scroll on mobile, wrap on larger screens */}
+      {/* Regions row */}
       <div className="flex gap-2 justify-start sm:justify-center overflow-x-auto sm:overflow-visible no-scrollbar snap-x snap-mandatory px-1 py-1">
         <button
           onClick={() => onRegionChange('all')}
@@ -25,7 +27,7 @@ const RegionFilter: React.FC<RegionFilterProps> = ({ selectedRegion, onRegionCha
         >
           Semua
         </button>
-        {regionsData.map((region) => (
+        {regionsToShow.map((region) => (
           <button
             key={region.id}
             onClick={() => onRegionChange(region.id)}
@@ -40,10 +42,37 @@ const RegionFilter: React.FC<RegionFilterProps> = ({ selectedRegion, onRegionCha
         ))}
       </div>
 
-      {/* Future: city-level chips can be rendered here using selectedCity/onCitySelect if needed */}
+      {/* Cities row (only when a specific region is selected and has cities) */}
+      {selectedRegion !== 'all' && activeRegion && activeRegion.cities && activeRegion.cities.length > 0 && (
+        <div className="flex gap-2 justify-start sm:justify-center overflow-x-auto sm:overflow-visible no-scrollbar px-1 py-1 mt-2">
+          <button
+            onClick={() => onCitySelect && onCitySelect(null)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border flex-shrink-0 ${
+              !selectedCity
+                ? 'bg-slate-800 text-white border-slate-800'
+                : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-300'
+            }`}
+          >
+            Semua kota
+          </button>
+          {activeRegion.cities.map((city) => (
+            <button
+              key={city.name}
+              onClick={() => onCitySelect && onCitySelect(city.name)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border flex-shrink-0 ${
+                selectedCity === city.name
+                  ? 'bg-slate-800 text-white border-slate-800'
+                  : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-300'
+              }`}
+              title={`${city.count} klinik`}
+            >
+              {city.name}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
-;
 
 export default RegionFilter;
