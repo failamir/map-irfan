@@ -368,14 +368,6 @@ function sozo_register_regions_route()
 }
 add_action('rest_api_init', 'sozo_register_regions_route');
 
-// CORS for REST API (allow all origins). Adjust if you need stricter rules.
-function sozo_rest_cors_allow_all($value)
-{
-    return true;
-}
-add_filter('rest_enabled', 'sozo_rest_cors_allow_all');
-add_filter('rest_jsonp_enabled', 'sozo_rest_cors_allow_all');
-
 function sozo_add_cors_headers()
 {
     $origin = get_http_origin();
