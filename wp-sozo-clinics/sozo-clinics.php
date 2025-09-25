@@ -1,14 +1,25 @@
 <?php
 
 /**
- * Plugin Name: Sozo Clinics
+ * Plugin Name: Sozo Clinics Manager by TreonStudio
  * Description: Registers Clinic CPT, Region taxonomy, custom fields, and REST endpoints for clinics and regions (with clinic counts).
  * Version: 1.0.0
- * Author: Fail Amir
+ * Author: Fail Amir & Irfan Chan
  */
 
 if (! defined('ABSPATH')) {
     exit; // Exit if accessed directly.
+}
+
+// Ultra-early suppression for REST requests to prevent deprecated/warnings leaking into JSON
+if ((defined('REST_REQUEST') && REST_REQUEST) || (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/wp-json/') !== false)) {
+    if (function_exists('ini_set')) {
+        @ini_set('display_errors', '0');
+    }
+    @error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED & ~E_NOTICE & ~E_USER_NOTICE & ~E_WARNING & ~E_USER_WARNING);
+    if (!ob_get_level()) {
+        @ob_start();
+    }
 }
 
 // Register Custom Post Type: clinic
@@ -368,6 +379,34 @@ function sozo_register_regions_route()
 }
 add_action('rest_api_init', 'sozo_register_regions_route');
 
+// Hard-disable deprecated REST disabling filters if any plugin/theme adds them
+add_action('plugins_loaded', function () {
+    // Remove any callbacks attached to deprecated filters to avoid notices in output
+    remove_all_filters('rest_enabled');
+    remove_all_filters('rest_jsonp_enabled');
+}, 0);
+
+// Ensure no PHP notices/warnings leak into REST responses by suppressing output early
+function sozo_is_rest_request()
+{
+    return (defined('REST_REQUEST') && REST_REQUEST)
+        || (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/wp-json/') !== false);
+}
+
+add_action('plugins_loaded', function () {
+    if (sozo_is_rest_request()) {
+        if (function_exists('ini_set')) {
+            @ini_set('display_errors', '0');
+        }
+        // Suppress deprecated, warnings, and notices from being printed
+        @error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED & ~E_NOTICE & ~E_USER_NOTICE & ~E_WARNING & ~E_USER_WARNING);
+        // Start output buffering so we can clean any accidental output before JSON
+        if (!ob_get_level()) {
+            @ob_start();
+        }
+    }
+}, 0);
+
 function sozo_add_cors_headers()
 {
     $origin = get_http_origin();
@@ -380,12 +419,21 @@ function sozo_add_cors_headers()
     header('Access-Control-Allow-Credentials: true');
     header('Access-Control-Allow-Headers: Authorization, Content-Type, X-WP-Nonce');
 }
+// Ensure REST responses are clean JSON (no PHP notices) and include CORS headers
 add_action('rest_api_init', function () {
+    // Make sure PHP notices/warnings are not displayed in REST output
+    if (function_exists('ini_set')) {
+        @ini_set('display_errors', '0');
+    }
+    // Before serving response, clear any prior accidental output and add CORS
     add_filter('rest_pre_serve_request', function ($value) {
+        if (ob_get_length()) {
+            @ob_clean();
+        }
         sozo_add_cors_headers();
         return $value;
-    });
-}, 15);
+    }, 0);
+}, 0);
 
 // Handle OPTIONS requests quickly
 add_action('init', function () {
