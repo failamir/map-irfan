@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from 'react';
 import MapComponent from './components/MapComponent';
 import Sidebar from './components/Sidebar';
 import RegionFilter from './components/RegionFilter';
-import { clinics as localClinics, regions as localRegions } from './data/clinics';
 import { Clinic, Region } from './types/clinic';
 import { CLINICS_ENDPOINT, REGIONS_ENDPOINT } from './config';
 
@@ -12,10 +11,10 @@ function App() {
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [selectedClinic, setSelectedClinic] = useState<Clinic | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [clinicsData, setClinicsData] = useState<Clinic[]>(localClinics);
+  const [clinicsData, setClinicsData] = useState<Clinic[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [regionsData, setRegionsData] = useState<Region[]>(localRegions);
+  const [regionsData, setRegionsData] = useState<Region[]>([]);
 
   // Reset city when region changes
   useEffect(() => {
@@ -31,12 +30,10 @@ function App() {
         const res = await fetch(CLINICS_ENDPOINT, { method: 'GET' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data: Clinic[] = await res.json();
-        if (!cancelled && Array.isArray(data) && data.length) {
-          setClinicsData(data);
-        }
+        if (!cancelled) setClinicsData(Array.isArray(data) ? data : []);
       } catch (e: any) {
-        console.warn('Falling back to local clinics data:', e?.message || e);
-        if (!cancelled) setError('Gagal memuat data dari WordPress, menggunakan data lokal.');
+        console.error('Failed to fetch clinics:', e?.message || e);
+        if (!cancelled) setError('Gagal memuat data dari WordPress.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -46,11 +43,9 @@ function App() {
         const res = await fetch(REGIONS_ENDPOINT, { method: 'GET' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data: Region[] = await res.json();
-        if (!cancelled && Array.isArray(data) && data.length) {
-          setRegionsData(data);
-        }
+        if (!cancelled) setRegionsData(Array.isArray(data) ? data : []);
       } catch (e) {
-        console.warn('Using local regions fallback');
+        console.warn('Failed to fetch regions');
       }
     };
     fetchClinics();
@@ -90,10 +85,10 @@ function App() {
         <div className="w-full min-w-0 z-40 bg-[#F3F8FF] supports-[backdrop-filter]:bg-[#F3F8FF]/90 backdrop-blur-md rounded-none sm:rounded-xl py-2">
           <RegionFilter
             selectedRegion={selectedRegion}
-            selectedCity={selectedCity}
             onRegionChange={setSelectedRegion}
-            onCitySelect={setSelectedCity}
             regions={regionsData}
+            selectedCity={selectedCity}
+            onCitySelect={setSelectedCity}
           />
         </div>
 
@@ -118,6 +113,8 @@ function App() {
               onSearchChange={setSearchTerm}
               selectedClinic={selectedClinic}
               onClinicSelect={handleClinicSelect}
+              loading={loading}
+              error={error}
             />
           </div>
 
