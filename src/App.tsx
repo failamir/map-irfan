@@ -23,13 +23,28 @@ function App() {
 
   useEffect(() => {
     let cancelled = false;
+    const parsePossiblyDirtyJson = (raw: string) => {
+      // Trim anything before the first JSON array/object bracket
+      const firstBraceIdx = raw.search(/[\[{]/);
+      if (firstBraceIdx > 0) {
+        console.warn('Sanitizing REST response: stripping leading non-JSON content');
+        raw = raw.slice(firstBraceIdx);
+      }
+      return JSON.parse(raw);
+    };
+    const withTs = (url: string) => {
+      const u = new URL(url);
+      u.searchParams.set('_ts', String(Date.now()));
+      return u.toString();
+    };
     const fetchClinics = async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(CLINICS_ENDPOINT, { method: 'GET' });
+        const res = await fetch(withTs(CLINICS_ENDPOINT), { method: 'GET' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data: Clinic[] = await res.json();
+        const text = await res.text();
+        const data: Clinic[] = parsePossiblyDirtyJson(text);
         if (!cancelled) setClinicsData(Array.isArray(data) ? data : []);
       } catch (e: any) {
         console.error('Failed to fetch clinics:', e?.message || e);
@@ -40,9 +55,10 @@ function App() {
     };
     const fetchRegions = async () => {
       try {
-        const res = await fetch(REGIONS_ENDPOINT, { method: 'GET' });
+        const res = await fetch(withTs(REGIONS_ENDPOINT), { method: 'GET' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data: Region[] = await res.json();
+        const text = await res.text();
+        const data: Region[] = parsePossiblyDirtyJson(text);
         if (!cancelled) setRegionsData(Array.isArray(data) ? data : []);
       } catch (e) {
         console.warn('Failed to fetch regions');
