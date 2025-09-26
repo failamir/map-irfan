@@ -9,6 +9,11 @@ interface ClinicCardProps {
 }
 
 const ClinicCard: React.FC<ClinicCardProps> = ({ clinic, isSelected, onClick }) => {
+  const hasCoords = Array.isArray(clinic.coordinates) && clinic.coordinates.length === 2 &&
+    Number.isFinite(clinic.coordinates[0]) && Number.isFinite(clinic.coordinates[1]);
+  const mapsUrl = hasCoords
+    ? `https://www.google.com/maps?q=${clinic.coordinates[0]},${clinic.coordinates[1]}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${clinic.name} ${clinic.address}`)}`;
   return (
     <div
       className={`p-4 rounded-lg border cursor-pointer transition-all duration-300 hover:shadow-md ${
@@ -70,15 +75,27 @@ const ClinicCard: React.FC<ClinicCardProps> = ({ clinic, isSelected, onClick }) 
             <span>Buka 24 jam</span>
           </div>
           
-          <button
-            className={`mt-3 w-full py-2 px-4 rounded-full text-sm font-medium transition-colors border ${
-              isSelected
-                ? 'border-orange-400 text-orange-700 hover:bg-orange-50'
-                : 'border-blue-400 text-blue-700 hover:bg-blue-50'
-            }`}
-          >
-            Explore Treatment
-          </button>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button
+              className={`py-2 px-4 rounded-full text-sm font-medium transition-colors border ${
+                isSelected
+                  ? 'border-orange-400 text-orange-700 hover:bg-orange-50'
+                  : 'border-blue-400 text-blue-700 hover:bg-blue-50'
+              }`}
+            >
+              Explore Treatment
+            </button>
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="py-2 px-4 rounded-full text-sm font-medium transition-colors border border-slate-300 text-slate-700 hover:bg-slate-50 text-center"
+              title="Buka di Google Maps"
+            >
+              Buka Maps
+            </a>
+          </div>
         </div>
       </div>
     </div>

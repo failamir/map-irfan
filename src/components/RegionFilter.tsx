@@ -71,6 +71,13 @@ const RegionFilter: React.FC<RegionFilterProps> = ({ selectedRegion, onRegionCha
           ))}
         </div>
       )}
+      {selectedRegion !== 'all' && activeRegion && (!activeRegion.cities || activeRegion.cities.length === 0) && (
+        <div className="px-2 mt-2 text-center">
+          <span className="inline-block text-xs text-slate-500 bg-slate-100 border border-slate-200 rounded-full px-3 py-1">
+            Tidak ada data kota untuk region ini
+          </span>
+        </div>
+      )}
     </div>
   );
 }

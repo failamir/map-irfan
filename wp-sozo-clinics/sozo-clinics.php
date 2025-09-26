@@ -281,6 +281,373 @@ function sozo_save_clinic_meta($post_id)
 }
 add_action('save_post', 'sozo_save_clinic_meta');
 
+// ==========================
+// Admin: CSV Import for Clinics
+// ==========================
+function sozo_register_import_submenu()
+{
+    add_submenu_page(
+        'edit.php?post_type=clinic',
+        __('Import Clinics (CSV)', 'sozo-clinics'),
+        __('Import (CSV)', 'sozo-clinics'),
+        'edit_posts',
+        'sozo-import',
+        'sozo_render_import_page'
+    );
+}
+add_action('admin_menu', 'sozo_register_import_submenu');
+
+function sozo_render_import_page()
+{
+    if (! current_user_can('edit_posts')) {
+        wp_die(__('You do not have sufficient permissions to access this page.', 'sozo-clinics'));
+    }
+
+    $created = isset($_GET['created']) ? (int) $_GET['created'] : 0;
+    $updated = isset($_GET['updated']) ? (int) $_GET['updated'] : 0;
+    $errors  = isset($_GET['errors'])  ? (int) $_GET['errors']  : 0;
+
+    echo '<div class="wrap">';
+    echo '<h1>' . esc_html__('Import Clinics from CSV', 'sozo-clinics') . '</h1>';
+
+    if (isset($_GET['import_result'])) {
+        echo '<div class="notice notice-success"><p>' . sprintf(
+            esc_html__('Import completed. Created: %d, Updated: %d, Errors: %d', 'sozo-clinics'),
+            (int) $created,
+            (int) $updated,
+            (int) $errors
+        ) . '</p></div>';
+    }
+
+    echo '<p>' . esc_html__('Upload a CSV file with the following headers:', 'sozo-clinics') . '</p>';
+    echo '<pre style="background:#fff;border:1px solid #ccd0d4;padding:10px;">id,name,address,city,region,phone,lat,lng,services,rating,image_url</pre>';
+    echo '<p><a class="button" href="' . esc_url( admin_url( 'admin-post.php?action=sozo_download_csv_template' ) ) . '">' . esc_html__('Download Template CSV', 'sozo-clinics') . '</a></p>';
+    echo '<p><em>' . esc_html__('Notes:', 'sozo-clinics') . '</em></p>';
+    echo '<ul class="ul-disc">';
+    echo '<li>' . esc_html__('id (optional): if provided and exists, that clinic will be updated. Otherwise, import will try to match by name.', 'sozo-clinics') . '</li>';
+    echo '<li>' . esc_html__('name (required): the clinic title.', 'sozo-clinics') . '</li>';
+    echo '<li>' . esc_html__('region: taxonomy term (slug or name). Will be created if not found.', 'sozo-clinics') . '</li>';
+    echo '<li>' . esc_html__('services: comma-separated list.', 'sozo-clinics') . '</li>';
+    echo '<li>' . esc_html__('image_url: direct image URL. If empty, you can set a Featured Image manually later.', 'sozo-clinics') . '</li>';
+    echo '</ul>';
+
+    echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" enctype="multipart/form-data">';
+    wp_nonce_field('sozo_import_csv', 'sozo_import_csv_nonce');
+    echo '<input type="hidden" name="action" value="sozo_import_csv" />';
+    echo '<table class="form-table"><tbody>';
+    echo '<tr><th scope="row">' . esc_html__('CSV File', 'sozo-clinics') . '</th><td>';
+    echo '<input type="file" name="csv_file" accept=".csv,text/csv" required />';
+    echo '</td></tr>';
+    echo '<tr><th scope="row">' . esc_html__('Dry Run (simulate only)', 'sozo-clinics') . '</th><td>';
+    echo '<label><input type="checkbox" name="dry_run" value="1" /> ' . esc_html__('Do not write changes, just validate and show summary', 'sozo-clinics') . '</label>';
+    echo '</td></tr>';
+    echo '<tr><th scope="row">' . esc_html__('Custom Header Mapping (optional)', 'sozo-clinics') . '</th><td>';
+    echo '<p class="description">' . esc_html__('If your CSV uses different header names, map them here. Leave blank to use defaults.', 'sozo-clinics') . '</p>';
+    $fields = ['id','name','address','city','region','phone','lat','lng','services','rating','image_url'];
+    echo '<table class="widefat striped" style="max-width:700px;"><thead><tr><th>' . esc_html__('Field', 'sozo-clinics') . '</th><th>' . esc_html__('CSV Header Name', 'sozo-clinics') . '</th></tr></thead><tbody>';
+    foreach ($fields as $f) {
+        echo '<tr><td><code>' . esc_html($f) . '</code></td><td><input type="text" name="map_' . esc_attr($f) . '" placeholder="' . esc_attr($f) . '" class="regular-text" /></td></tr>';
+    }
+    echo '</tbody></table>';
+    echo '</td></tr>';
+    echo '</tbody></table>';
+    submit_button(esc_html__('Import', 'sozo-clinics'));
+    echo '</form>';
+    echo '</div>';
+}
+
+add_action('admin_post_sozo_import_csv', 'sozo_handle_csv_import');
+function sozo_handle_csv_import()
+{
+    if (! current_user_can('edit_posts')) {
+        wp_die(__('Insufficient permissions.', 'sozo-clinics'));
+    }
+    if (! isset($_POST['sozo_import_csv_nonce']) || ! wp_verify_nonce($_POST['sozo_import_csv_nonce'], 'sozo_import_csv')) {
+        wp_die(__('Invalid request.', 'sozo-clinics'));
+    }
+
+    if (! isset($_FILES['csv_file']) || empty($_FILES['csv_file']['tmp_name'])) {
+        wp_redirect(add_query_arg(['post_type' => 'clinic', 'page' => 'sozo-import', 'import_result' => 1, 'created' => 0, 'updated' => 0, 'errors' => 1], admin_url('edit.php')));
+        exit;
+    }
+
+    $file = $_FILES['csv_file']['tmp_name'];
+    $fh = fopen($file, 'r');
+    if (! $fh) {
+        wp_redirect(add_query_arg(['post_type' => 'clinic', 'page' => 'sozo-import', 'import_result' => 1, 'created' => 0, 'updated' => 0, 'errors' => 1], admin_url('edit.php')));
+        exit;
+    }
+
+    $created = 0; $updated = 0; $errors = 0;
+    $is_dry = !empty($_POST['dry_run']);
+
+    // Build custom header mapping (normalize to lowercase underscore)
+    $expected = ['id','name','address','city','region','phone','lat','lng','services','rating','image_url'];
+    $custom_map = [];
+    foreach ($expected as $ek) {
+        $val = isset($_POST['map_'.$ek]) ? trim((string) $_POST['map_'.$ek]) : '';
+        if ($val !== '') {
+            $val = strtolower(preg_replace('/\s+/', '_', $val));
+            $custom_map[$ek] = $val;
+        }
+    }
+    $headers = fgetcsv($fh);
+    if (! $headers) { fclose($fh); $errors++; goto sozo_import_done; }
+
+    // Normalize headers and build index map
+    $map = [];
+    $headerIndex = [];
+    foreach ($headers as $idx => $h) {
+        $key = strtolower(trim($h));
+        $key = preg_replace('/\s+/', '_', $key);
+        $map[$idx] = $key;
+        $headerIndex[$key] = $idx;
+    }
+    // Resolve indices for each expected field using custom mapping if provided
+    $fieldIndex = [];
+    foreach ($expected as $ek) {
+        $target = isset($custom_map[$ek]) ? $custom_map[$ek] : $ek;
+        $fieldIndex[$ek] = isset($headerIndex[$target]) ? (int)$headerIndex[$target] : -1;
+    }
+
+    while (($row = fgetcsv($fh)) !== false) {
+        $item = [];
+        foreach ($expected as $ek) {
+            $idx = $fieldIndex[$ek];
+            $item[$ek] = ($idx >= 0 && isset($row[$idx])) ? trim($row[$idx]) : '';
+        }
+
+        // Required: name
+        if (empty($item['name'])) { $errors++; continue; }
+
+        $post_id = 0;
+        if (! empty($item['id'])) {
+            $maybe = absint($item['id']);
+            if ($maybe && get_post_type($maybe) === 'clinic') {
+                $post_id = $maybe;
+            }
+        }
+        // Fallback: find by exact title
+        if (! $post_id) {
+            $existing = get_page_by_title(wp_strip_all_tags($item['name']), OBJECT, 'clinic');
+            if ($existing) { $post_id = (int) $existing->ID; }
+        }
+
+        if ($is_dry) {
+            // Simulate create/update
+            if ($post_id) { $updated++; } else { $created++; }
+            // Skip writes in dry-run
+        } else {
+            $postarr = [
+                'post_type' => 'clinic',
+                'post_status' => 'publish',
+                'post_title' => sanitize_text_field($item['name']),
+            ];
+            if ($post_id) {
+                $postarr['ID'] = $post_id;
+                $post_id = wp_update_post($postarr, true);
+                if (is_wp_error($post_id)) { $errors++; continue; } else { $updated++; }
+            } else {
+                $post_id = wp_insert_post($postarr, true);
+                if (is_wp_error($post_id)) { $errors++; continue; } else { $created++; }
+            }
+        }
+
+        // Meta fields
+        $meta_fields = [
+            'address' => 'address',
+            'city' => 'city',
+            'phone' => 'phone',
+            'services' => 'services',
+            'image_url' => 'image_url',
+        ];
+        foreach ($meta_fields as $csv_key => $meta_key) {
+            if (isset($item[$csv_key]) && $item[$csv_key] !== '') {
+                $val = $item[$csv_key];
+                if ($meta_key === 'services') {
+                    $parts = array_filter(array_map('trim', explode(',', (string) $val)));
+                    $val = implode(', ', $parts);
+                } elseif ($meta_key === 'image_url') {
+                    $val = esc_url_raw(trim($val));
+                } else {
+                    $val = sanitize_text_field($val);
+                }
+                if (! $is_dry) { update_post_meta($post_id, $meta_key, $val); }
+            }
+        }
+        // Numeric meta
+        if (!$is_dry) {
+            if (isset($item['lat']) && $item['lat'] !== '') { update_post_meta($post_id, 'lat', (float) $item['lat']); }
+            if (isset($item['lng']) && $item['lng'] !== '') { update_post_meta($post_id, 'lng', (float) $item['lng']); }
+            if (isset($item['rating']) && $item['rating'] !== '') { update_post_meta($post_id, 'rating', max(0, min(5, (float) $item['rating'])) ); }
+        }
+
+        // Taxonomy: clinic_region
+        if (isset($item['region']) && $item['region'] !== '') {
+            $region_val = trim($item['region']);
+            $term = get_term_by('slug', sanitize_title($region_val), 'clinic_region');
+            if (! $term) { $term = get_term_by('name', $region_val, 'clinic_region'); }
+            if (! $term) {
+                if (!$is_dry) {
+                    $inserted = wp_insert_term($region_val, 'clinic_region', ['slug' => sanitize_title($region_val)]);
+                    if (! is_wp_error($inserted)) {
+                        $term = get_term_by('id', (int) $inserted['term_id'], 'clinic_region');
+                    }
+                }
+            }
+            if (!$is_dry && $term && ! is_wp_error($term)) {
+                wp_set_post_terms($post_id, [ (int) $term->term_id ], 'clinic_region', false);
+            }
+        }
+    }
+
+    fclose($fh);
+
+    sozo_import_done:
+    wp_redirect(add_query_arg([
+        'post_type' => 'clinic',
+        'page' => 'sozo-import',
+        'import_result' => 1,
+        'created' => $created,
+        'updated' => $updated,
+        'errors'  => $errors,
+        'dry_run' => $is_dry ? 1 : 0,
+    ], admin_url('edit.php')));
+    exit;
+}
+
+// Download template CSV
+add_action('admin_post_sozo_download_csv_template', function() {
+    if (! current_user_can('edit_posts')) {
+        wp_die(__('Insufficient permissions.', 'sozo-clinics'));
+    }
+    $filename = 'clinics-template.csv';
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename=' . $filename);
+    $out = fopen('php://output', 'w');
+    fputcsv($out, ['id','name','address','city','region','phone','lat','lng','services','rating','image_url']);
+    fputcsv($out, ['', 'Sozo Skin Clinic Yogyakarta', 'Jl. Pangeran Diponegoro No.58', 'Yogyakarta', 'yogyakarta', '0851...', '-7.783', '110.367', 'Perawatan Kulit, Konsultasi Dermatologi, Laser Treatment', '4.8', 'https://example.com/image.jpg']);
+    fclose($out);
+    exit;
+});
+
+// ==========================
+// Admin: CSV Export for Clinics
+// ==========================
+function sozo_register_export_submenu()
+{
+    add_submenu_page(
+        'edit.php?post_type=clinic',
+        __('Export Clinics (CSV)', 'sozo-clinics'),
+        __('Export (CSV)', 'sozo-clinics'),
+        'edit_posts',
+        'sozo-export',
+        'sozo_render_export_page'
+    );
+}
+add_action('admin_menu', 'sozo_register_export_submenu');
+
+function sozo_render_export_page()
+{
+    if (! current_user_can('edit_posts')) {
+        wp_die(__('You do not have sufficient permissions to access this page.', 'sozo-clinics'));
+    }
+    echo '<div class="wrap">';
+    echo '<h1>' . esc_html__('Export Clinics to CSV', 'sozo-clinics') . '</h1>';
+    echo '<p>' . esc_html__('Download clinics as CSV. You can filter by region (optional).', 'sozo-clinics') . '</p>';
+    $terms = get_terms([
+        'taxonomy' => 'clinic_region',
+        'hide_empty' => false,
+    ]);
+    $selected = isset($_GET['region']) ? sanitize_text_field($_GET['region']) : '';
+    echo '<form method="get" action="' . esc_url(admin_url('admin-post.php')) . '" class="">';
+    echo '<input type="hidden" name="action" value="sozo_export_csv" />';
+    echo '<table class="form-table"><tbody>';
+    echo '<tr><th scope="row">' . esc_html__('Region', 'sozo-clinics') . '</th><td>';
+    echo '<select name="region">';
+    echo '<option value="">' . esc_html__('All Regions', 'sozo-clinics') . '</option>';
+    if (!is_wp_error($terms)) {
+        foreach ($terms as $t) {
+            $sel = selected($selected, $t->slug, false);
+            echo '<option value="' . esc_attr($t->slug) . '" ' . $sel . '>' . esc_html($t->name) . '</option>';
+        }
+    }
+    echo '</select>';
+    echo '</td></tr>';
+    echo '</tbody></table>';
+    submit_button(esc_html__('Download Clinics CSV', 'sozo-clinics'));
+    echo '</form>';
+    echo '</div>';
+}
+
+add_action('admin_post_sozo_export_csv', function() {
+    if (! current_user_can('edit_posts')) {
+        wp_die(__('Insufficient permissions.', 'sozo-clinics'));
+    }
+    $filename = 'clinics-export-' . date('Ymd-His') . '.csv';
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename=' . $filename);
+    $out = fopen('php://output', 'w');
+    // Headers
+    $headers = ['id','name','address','city','region','phone','lat','lng','services','rating','image_url'];
+    fputcsv($out, $headers);
+
+    // Fetch all clinics
+    $args = [
+        'post_type' => 'clinic',
+        'numberposts' => -1,
+        'post_status' => 'any',
+    ];
+    $region = isset($_REQUEST['region']) ? sanitize_text_field($_REQUEST['region']) : '';
+    if ($region !== '') {
+        $args['tax_query'] = [
+            [
+                'taxonomy' => 'clinic_region',
+                'field' => 'slug',
+                'terms' => $region,
+            ]
+        ];
+    }
+    $posts = get_posts($args);
+
+    foreach ($posts as $p) {
+        $id = (int) $p->ID;
+        $address = (string) get_post_meta($id, 'address', true);
+        $city    = (string) get_post_meta($id, 'city', true);
+        $phone   = (string) get_post_meta($id, 'phone', true);
+        $lat     = (string) get_post_meta($id, 'lat', true);
+        $lng     = (string) get_post_meta($id, 'lng', true);
+        $services= (string) get_post_meta($id, 'services', true);
+        $rating  = (string) get_post_meta($id, 'rating', true);
+        $image   = (string) get_post_meta($id, 'image_url', true);
+
+        // First region slug if available
+        $terms = wp_get_post_terms($id, 'clinic_region');
+        $region = '';
+        if (!is_wp_error($terms) && !empty($terms)) {
+            $region = $terms[0]->slug;
+        }
+
+        $row = [
+            $id,
+            get_the_title($id),
+            $address,
+            $city,
+            $region,
+            $phone,
+            $lat,
+            $lng,
+            $services,
+            $rating,
+            $image,
+        ];
+        fputcsv($out, $row);
+    }
+
+    fclose($out);
+    exit;
+});
+
 // REST: /sozo/v1/regions (with clinic counts and city counts)
 function sozo_register_regions_route()
 {
