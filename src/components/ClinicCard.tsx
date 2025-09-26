@@ -9,11 +9,14 @@ interface ClinicCardProps {
 }
 
 const ClinicCard: React.FC<ClinicCardProps> = ({ clinic, isSelected, onClick }) => {
+  const manualMaps = clinic.maps && clinic.maps.trim().length > 0 ? clinic.maps.trim() : '';
   const hasCoords = Array.isArray(clinic.coordinates) && clinic.coordinates.length === 2 &&
     Number.isFinite(clinic.coordinates[0]) && Number.isFinite(clinic.coordinates[1]);
-  const mapsUrl = hasCoords
-    ? `https://www.google.com/maps?q=${clinic.coordinates[0]},${clinic.coordinates[1]}`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${clinic.name} ${clinic.address}`)}`;
+  const mapsUrl = manualMaps || (
+    hasCoords
+      ? `https://www.google.com/maps?q=${clinic.coordinates[0]},${clinic.coordinates[1]}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${clinic.name} ${clinic.address}`)}`
+  );
   return (
     <div
       className={`p-4 rounded-lg border cursor-pointer transition-all duration-300 hover:shadow-md ${

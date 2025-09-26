@@ -9,6 +9,7 @@ export interface Clinic {
   services: string[];
   rating: number;
   image: string;
+  maps?: string; // manual Google Maps URL if provided by API
 }
 
 export interface City {

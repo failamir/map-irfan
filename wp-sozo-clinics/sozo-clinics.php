@@ -75,6 +75,7 @@ function sozo_register_clinic_meta()
         'services' => ['type' => 'string', 'single' => true], // Comma-separated list; will be split in API
         'rating'  => ['type' => 'number', 'single' => true],
         'image_url' => ['type' => 'string', 'single' => true], // Optional external image URL
+        'maps_url' => ['type' => 'string', 'single' => true],  // Optional manual Google Maps URL
     ];
 
     foreach ($meta_keys as $key => $args) {
@@ -138,6 +139,7 @@ function sozo_register_clinics_route()
                 $lng = (float) get_post_meta($id, 'lng', true);
                 $image_meta = trim((string) get_post_meta($id, 'image_url', true));
                 $image = $image_meta !== '' ? $image_meta : get_the_post_thumbnail_url($id, 'large');
+                $maps_meta = trim((string) get_post_meta($id, 'maps_url', true));
 
                 $item = [
                     'id'      => (string) $id,
@@ -150,6 +152,7 @@ function sozo_register_clinics_route()
                     'services' => $services,
                     'rating'  => (float) get_post_meta($id, 'rating', true),
                     'image'   => $image ? $image : '',
+                    'maps'    => $maps_meta !== '' ? $maps_meta : '',
                 ];
                 $data[] = $item;
             }
@@ -185,6 +188,7 @@ function sozo_render_clinic_meta_box($post)
     $services  = get_post_meta($post->ID, 'services', true);
     $rating    = get_post_meta($post->ID, 'rating', true);
     $image_url = get_post_meta($post->ID, 'image_url', true);
+    $maps_url  = get_post_meta($post->ID, 'maps_url', true);
 
     echo '<p><label for="sozo_address"><strong>' . esc_html__('Address', 'sozo-clinics') . '</strong></label><br />';
     echo '<input type="text" id="sozo_address" name="sozo_address" class="widefat" value="' . esc_attr($address) . '" /></p>';
@@ -211,6 +215,10 @@ function sozo_render_clinic_meta_box($post)
     echo '<p><label for="sozo_image_url"><strong>' . esc_html__('External Image URL (optional)', 'sozo-clinics') . '</strong></label><br />';
     echo '<input type="url" id="sozo_image_url" name="sozo_image_url" class="widefat" value="' . esc_attr($image_url) . '" placeholder="https://..." />';
     echo '<em>' . esc_html__('If provided, this URL will be used in the API instead of the Featured Image.', 'sozo-clinics') . '</em></p>';
+
+    echo '<p><label for="sozo_maps_url"><strong>' . esc_html__('Google Maps URL (optional)', 'sozo-clinics') . '</strong></label><br />';
+    echo '<input type="url" id="sozo_maps_url" name="sozo_maps_url" class="widefat" value="' . esc_attr($maps_url) . '" placeholder="https://maps.google.com/..." />';
+    echo '<em>' . esc_html__('If provided, this URL will be exposed as maps in the REST API. If empty, the frontend may build a maps link from coordinates or address.', 'sozo-clinics') . '</em></p>';
 
     echo '<p><strong>' . esc_html__('Region', 'sozo-clinics') . ':</strong> ' . esc_html__('Use the "Clinic Regions" box in the sidebar to assign a region (e.g., jawa).', 'sozo-clinics') . '</p>';
     echo '<p><strong>' . esc_html__('Image', 'sozo-clinics') . ':</strong> ' . esc_html__('You can also set a Featured Image which will be used if External Image URL is empty.', 'sozo-clinics') . '</p>';
@@ -247,6 +255,7 @@ function sozo_save_clinic_meta($post_id)
         'sozo_services'  => 'services',
         'sozo_rating'    => 'rating',
         'sozo_image_url' => 'image_url',
+        'sozo_maps_url'  => 'maps_url',
     ];
 
     foreach ($map as $posted => $meta_key) {
@@ -261,6 +270,9 @@ function sozo_save_clinic_meta($post_id)
                     $value = is_numeric($value) ? max(0, min(5, (float) $value)) : '';
                     break;
                 case 'image_url':
+                    $value = esc_url_raw(trim($value));
+                    break;
+                case 'maps_url':
                     $value = esc_url_raw(trim($value));
                     break;
                 case 'services':
@@ -320,7 +332,7 @@ function sozo_render_import_page()
     }
 
     echo '<p>' . esc_html__('Upload a CSV file with the following headers:', 'sozo-clinics') . '</p>';
-    echo '<pre style="background:#fff;border:1px solid #ccd0d4;padding:10px;">id,name,address,city,region,phone,lat,lng,services,rating,image_url</pre>';
+    echo '<pre style="background:#fff;border:1px solid #ccd0d4;padding:10px;">id,name,address,city,region,phone,lat,lng,services,rating,image_url,maps_url</pre>';
     echo '<p><a class="button" href="' . esc_url( admin_url( 'admin-post.php?action=sozo_download_csv_template' ) ) . '">' . esc_html__('Download Template CSV', 'sozo-clinics') . '</a></p>';
     echo '<p><em>' . esc_html__('Notes:', 'sozo-clinics') . '</em></p>';
     echo '<ul class="ul-disc">';
@@ -343,7 +355,7 @@ function sozo_render_import_page()
     echo '</td></tr>';
     echo '<tr><th scope="row">' . esc_html__('Custom Header Mapping (optional)', 'sozo-clinics') . '</th><td>';
     echo '<p class="description">' . esc_html__('If your CSV uses different header names, map them here. Leave blank to use defaults.', 'sozo-clinics') . '</p>';
-    $fields = ['id','name','address','city','region','phone','lat','lng','services','rating','image_url'];
+    $fields = ['id','name','address','city','region','phone','lat','lng','services','rating','image_url','maps_url'];
     echo '<table class="widefat striped" style="max-width:700px;"><thead><tr><th>' . esc_html__('Field', 'sozo-clinics') . '</th><th>' . esc_html__('CSV Header Name', 'sozo-clinics') . '</th></tr></thead><tbody>';
     foreach ($fields as $f) {
         echo '<tr><td><code>' . esc_html($f) . '</code></td><td><input type="text" name="map_' . esc_attr($f) . '" placeholder="' . esc_attr($f) . '" class="regular-text" /></td></tr>';
@@ -382,7 +394,7 @@ function sozo_handle_csv_import()
     $is_dry = !empty($_POST['dry_run']);
 
     // Build custom header mapping (normalize to lowercase underscore)
-    $expected = ['id','name','address','city','region','phone','lat','lng','services','rating','image_url'];
+    $expected = ['id','name','address','city','region','phone','lat','lng','services','rating','image_url','maps_url'];
     $custom_map = [];
     foreach ($expected as $ek) {
         $val = isset($_POST['map_'.$ek]) ? trim((string) $_POST['map_'.$ek]) : '';
@@ -460,6 +472,7 @@ function sozo_handle_csv_import()
             'phone' => 'phone',
             'services' => 'services',
             'image_url' => 'image_url',
+            'maps_url' => 'maps_url',
         ];
         foreach ($meta_fields as $csv_key => $meta_key) {
             if (isset($item[$csv_key]) && $item[$csv_key] !== '') {
@@ -468,6 +481,8 @@ function sozo_handle_csv_import()
                     $parts = array_filter(array_map('trim', explode(',', (string) $val)));
                     $val = implode(', ', $parts);
                 } elseif ($meta_key === 'image_url') {
+                    $val = esc_url_raw(trim($val));
+                } elseif ($meta_key === 'maps_url') {
                     $val = esc_url_raw(trim($val));
                 } else {
                     $val = sanitize_text_field($val);
@@ -525,8 +540,8 @@ add_action('admin_post_sozo_download_csv_template', function() {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename=' . $filename);
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['id','name','address','city','region','phone','lat','lng','services','rating','image_url']);
-    fputcsv($out, ['', 'Sozo Skin Clinic Yogyakarta', 'Jl. Pangeran Diponegoro No.58', 'Yogyakarta', 'yogyakarta', '0851...', '-7.783', '110.367', 'Perawatan Kulit, Konsultasi Dermatologi, Laser Treatment', '4.8', 'https://example.com/image.jpg']);
+    fputcsv($out, ['id','name','address','city','region','phone','lat','lng','services','rating','image_url','maps_url']);
+    fputcsv($out, ['', 'Sozo Skin Clinic Yogyakarta', 'Jl. Pangeran Diponegoro No.58', 'Yogyakarta', 'yogyakarta', '0851...', '-7.783', '110.367', 'Perawatan Kulit, Konsultasi Dermatologi, Laser Treatment', '4.8', 'https://example.com/image.jpg', 'https://maps.google.com/?q=-7.783,110.367']);
     fclose($out);
     exit;
 });
@@ -589,7 +604,7 @@ add_action('admin_post_sozo_export_csv', function() {
     header('Content-Disposition: attachment; filename=' . $filename);
     $out = fopen('php://output', 'w');
     // Headers
-    $headers = ['id','name','address','city','region','phone','lat','lng','services','rating','image_url'];
+    $headers = ['id','name','address','city','region','phone','lat','lng','services','rating','image_url','maps_url'];
     fputcsv($out, $headers);
 
     // Fetch all clinics
@@ -620,6 +635,7 @@ add_action('admin_post_sozo_export_csv', function() {
         $services= (string) get_post_meta($id, 'services', true);
         $rating  = (string) get_post_meta($id, 'rating', true);
         $image   = (string) get_post_meta($id, 'image_url', true);
+        $mapsurl = (string) get_post_meta($id, 'maps_url', true);
 
         // First region slug if available
         $terms = wp_get_post_terms($id, 'clinic_region');
@@ -640,6 +656,7 @@ add_action('admin_post_sozo_export_csv', function() {
             $services,
             $rating,
             $image,
+            $mapsurl,
         ];
         fputcsv($out, $row);
     }
